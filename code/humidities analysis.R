@@ -4,7 +4,9 @@ library(tibble)
 library(tseries)
 
 
-#3. Humedad comedor sensor
+#---------------------------------------------------------------------------#
+
+#1. Humedad comedor sensor
 
 
 #HOLT-WINTER
@@ -113,8 +115,9 @@ sqrt(mean(g^2, na.rm=TRUE))
 
 
 
+#---------------------------------------------------------------------------#
 
-#5. Humedad exterior sensor
+#2. Humedad exterior sensor
 
 
 ## HOLT-WINTER
@@ -195,4 +198,77 @@ sqrt(mean(f1^2, na.rm=TRUE))
 g1<-tsCV(humextsens, far3, h=24)
 sqrt(mean(g1^2, na.rm=TRUE))
 
+#---------------------------------------------------------------------------#
 
+#3. Temperature comedor sensor
+
+
+
+
+
+
+
+#---------------------------------------------------------------------------#
+
+#4. CO2 comedor sensor
+
+#---------------------------------------------------------------------------#
+
+# 5.Lightning habitacion sensor
+
+#BoxCox transformation
+
+lightbc <- BoxCox(Lighthabsens, lambda = "auto")
+autoplot(lightbc) + ggtitle("Time series using a Box-Cox transformation") + xlab("Days")
+
+
+#ARIMA 
+
+arim <-  auto.arima(lightbc, stepwise = F)
+summary(arim)
+
+checkresiduals(arim)
+
+kpss.test(arim$residuals)
+
+autoplot(arim) + 
+  ggtitle("Unit root test")
+
+#ETS (tried but not selected)
+
+etsl<-ets(Lighthabsens, damped=NULL)
+checkresiduals(etsl)
+etsl%>%summary()
+
+
+#Cross validation
+far2 <- function(x, h){forecast(auto.arima(x, step = F), h=h)}
+
+#1 hour in advance
+  e_1h <- tsCV(lightbc, far2, h=1)
+  
+  #RMSE
+  sqrt(mean(e_1h^2, na.rm=TRUE))
+  
+
+
+#24 hours in advance
+e_24h <- tsCV(lightbc, far2, h=24)
+
+
+  #RMSE
+  sqrt(mean(e_24h^2, na.rm=TRUE))
+
+
+
+
+#5 days in advance
+e_5d <- tsCV(lightbc, far2, h=5*24)
+
+
+  #RMSE
+  sqrt(mean(e_5d^2, na.rm=TRUE))
+
+
+  
+#---------------------------------------------------------------------------#
