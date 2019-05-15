@@ -12,7 +12,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-#Code d'Alex pour créer la hts
+#Code d'Alex pour cr?er la hts
 options(scipen = 999)
 
 load("Group_3.RData")
@@ -455,6 +455,26 @@ as_tibble(test1) %>%
   scale_colour_manual(values = cols)
 #theme(legend.position="none")
   
-  
-  
+#---------------------------------------------------------------------------#
+
+#RW
+prod.tdgsa.fct.rw <- forecast(object = prod.hts, h = 17, fmethod = "rw", method = "tdgsa")
+autoplot(aggts(prod.hts, levels = 0), series = "Total") +
+  autolayer(aggts(prod.tdgsa.fct.rw, levels = 0), series = "Forecast")
+
+autoplot(aggts(prod.hts, levels = 1), series = "Total") +
+  autolayer(aggts(prod.tdgsa.fct.rw, levels = 1), series = "Forecast")
+
+autoplot(aggts(prod.hts, levels = 2), series = "Total") +
+  autolayer(aggts(prod.tdgsa.fct.rw, levels = 2), series = "Forecast")
+
+prod_rw_before <- ts(aggts(prod.hts, levels = 0),
+                     frequency = 52, start=start(prod.hts$bts))
+
+prod_rw <- rwf(prod_rw_before, lambda = T, h = 17)
+
+checkresiduals(prod_rw)
+
+autoplot(prod_rw)
+
 
