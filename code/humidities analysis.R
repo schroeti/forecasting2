@@ -202,10 +202,78 @@ sqrt(mean(g1^2, na.rm=TRUE))
 
 #3. Temperature comedor sensor
 
+#Seasonal differenciation
+seasonaldifftemp <- diff(tempcomsens, lag=24, differences=1)
+seasonaldifftemp%>%autoplot()+ggtitle("Seasonal differenced temperature comedor sensor")+scale_x_continuous("Day", breaks= c(18,19,20,21,22,23,24,25,26,27,28,29,30) , labels=c(18,19,20,21,22,23,24,25,26,27,28,29,30))
+
+##ETS 
+ets_temp <- ets(seasonaldifftemp, model = "ZZZ", damped = NULL, 
+                alpha = NULL, beta = NULL, gamma = NULL, phi = NULL,
+                lambda = "auto", biasadj = TRUE, ic = c("aicc", "aic", "bic") )
+
+ets_temp%>% autoplot()+ggtitle("ets(A,Ad,A) temperature comedor sensor")
+ets_temp
+
+#AIC ets
+AIC(ets_temp)
+
+#check residuals ets
+checkresiduals(ets_temp)
 
 
+##ARIMA Model
+ARIMA_auto_tempcomsens <- auto.arima(tempcomsens, 
+                                     stepwise = FALSE, biasadj = TRUE,
+                                     allowdrift = TRUE, lambda = "auto")
 
+#AIC Arima
+AIC(ARIMA_auto_tempcomsens)
 
+#check residuals
+checkresiduals(ARIMA_auto_tempcomsens)
+
+#Portemanteau tests
+adf.test(ARIMA_auto_tempcomsens$residuals)
+kpss.test(ARIMA_auto_tempcomsens$residuals)
+
+#Unit roots
+ARIMA_auto_tempcomsens%>%autoplot()+ggtitle("Unit roots ARIMA(2,1,0)(2,1,0)24")
+
+#Pacf
+ggPacf(ARIMA_auto_tempcomsens$residuals)
+
+#lagplot
+gglagplot(ARIMA_auto_tempcomsens$residuals,do.lines=FALSE)+
+  ggtitle("Lagplot of ARIMA(2,1,0)(2,1,0)24")
+
+# Forecasts ARIMA_auto_tempcomsens
+ARIMA1 <- forecast(ARIMA_auto_tempcomsens, h=1)
+ARIMA1
+autoplot(ARIMA1)+ggtitle("Forecast ARIMA temperature h=1")+ylab("Temperature")+xlab("Days")
+ARIMA24 <- forecast(ARIMA_auto_tempcomsens, h=24)
+ARIMA24
+autoplot(ARIMA24)+ggtitle("Forecast temperature comedor sensor with ARIMA(2,1,0)(2,1,0)24 h=24")+ylab("Temperature")+xlab("Days")
+ARIMA120 <- forecast(ARIMA_auto_tempcomsens, h=120)
+ARIMA120
+autoplot(ARIMA120)+ggtitle("Forecast temperature comedor sensor with ARIMA(2,1,0)(2,1,0)24 h=120")+ylab("Temperature")+xlab("Days")
+
+#Cross validation
+CvARIMA <- function(x,h){forecast(auto.arima(x, stepwise = FALSE), h=h)}
+
+ARIMAcv1 <- tsCV(tempcomsens, CvARIMA, h=1)
+ARIMAcv1
+ARIMAcv24 <- tsCV(tempcomsens, CvARIMA, h=24)
+ARIMAcv24
+ARIMAcv120 <- tsCV(tempcomsens, CvARIMA, h=5*24)
+ARIMAcv120
+
+#RMSE
+RMSE1 <-  sqrt(mean(ARIMAcv1^2, na.rm=TRUE))
+RMSE24 <-  sqrt(mean(ARIMAcv24^2, na.rm=TRUE))
+RMSE120 <-  sqrt(mean(ARIMAcv120^2, na.rm=TRUE))
+RMSE1
+RMSE24
+RMSE120
 
 
 #---------------------------------------------------------------------------#
