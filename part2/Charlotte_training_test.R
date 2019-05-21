@@ -13,7 +13,6 @@ library(tidyr)
 library(ggplot2)
 library(stringr)
 
-#Code d'Alex pour creer la hts
 options(scipen = 999)
 
 load("Group_3.RData")
@@ -21,6 +20,8 @@ load("Group_3.RData")
 match <- read_csv("matchmod.csv", col_names = F )
 
 #----------------------------------------------------------------------------------------#
+
+#Transformation in order to match dataset with match table and create hts
 tx <- x
 txc <- tx %>%
   colnames() %>%
@@ -55,16 +56,48 @@ for(i in 1:length(prod)){
 
 prod.hts <- hts(x.ts[,1:ncol(x.ts)], characters = c(8,12))
 
-#####----------------------------------------------------------------------------#
+#----------------------------------------------------------------------------#
 
 #TRAINING AND TEST SET
-prod.tr.hts <- window(prod.hts, end = 78)#1an et demi = 78 semaines
-prod.ts.hts <- window(prod.hts, start = 79)#depuis mi 2017
+prod.tr.hts <- window(prod.hts, end = 78)#78 weeks
+prod.ts.hts <- window(prod.hts, start = 79)#the remaining weeks (33)
+
+#----------------------------------------------------------------------------#
+
+#EXPLORATORY ANALYSIS
+
+#Grand Total
+prod.hts %>% aggts(levels=0) %>%
+  autoplot(facet=TRUE) +
+  ylab("Revenue in CHF")
+
+#Graph of groups/categories
+test <- aggts(prod.hts, level=1)
+
+cols <- sample(scales::hue_pal(h=c(15,375),
+                               c=100,l=65,h.start=0,direction = 1)(NCOL(prod.tr.agg)))
+as_tibble(test) %>%
+  gather(Group) %>%
+  mutate(Date = rep(time(test), NCOL(test)),
+         Groups = str_sub(Group,1,8)) %>%
+  ggplot(aes(x=Date, y=value, group=Groups, colour=Group)) +
+  geom_line() +
+  facet_grid(Groups~., scales="free_y") +
+  xlab("Weeks") + ylab("Product incomes") +
+  ggtitle("Group level")
+
+#Each product
+prod.hts %>% aggts(levels=2) %>%
+  autoplot(facet=TRUE) +
+  ylab("Revenue in CHF")
+#Not very readable
 
 #--------------------------------------------------------------------------------#
-###### TOTAL (LEVEL = 0)
 
-### ARIMA MODELS
+#FORECASTING METHODS
+
+#TOTAL (LEVEL = 0)
+#ARIMA MODELS
 prod.tr.bu.arima <- forecast(prod.tr.hts, h =33, method = "bu" , fmethod = "arima")
 prod.tr.tdf.arima <- forecast(prod.tr.hts, h = 33, method = "tdfp" , fmethod = "arima")
 prod.tr.tda.arima <- forecast(prod.tr.hts, h = 33, method = "tdgsa", fmethod = "arima")
@@ -82,6 +115,7 @@ autoplot(aggts(prod.ts.hts, levels = 0), series = "test set") +
   ggtitle("Forecasts total (level = 0) with ARIMA ") +
   labs(x="Weeks", y="Product incomes")
 
+#Accuracy arima
 acc.tr.bu.arima0 <- t(accuracy.gts(prod.tr.bu.arima, prod.ts.hts, levels = 0))
 acc.tr.tda.arima0 <- t(accuracy.gts(prod.tr.tda.arima, prod.ts.hts,levels = 0)) 
 acc.tr.tdp.arima0 <- t(accuracy.gts(prod.tr.tdp.arima, prod.ts.hts,levels = 0))
@@ -113,6 +147,7 @@ autoplot(aggts(prod.ts.hts, levels = 0), series = "test set") +
   ggtitle("Forecasts total (level = 0) with ETS") +
   labs(x="Weeks", y="Product incomes")
 
+#Accuracy ets
 acc.tr.bu.ets0 <- t(accuracy.gts(prod.tr.bu.ets, prod.ts.hts, levels = 0))
 acc.tr.tda.ets0 <- t(accuracy.gts(prod.tr.tda.ets, prod.ts.hts,levels = 0)) 
 acc.tr.tdp.ets0 <- t(accuracy.gts(prod.tr.tdp.ets, prod.ts.hts,levels = 0))
@@ -144,6 +179,7 @@ autoplot(aggts(prod.ts.hts, levels = 0), series = "test set") +
   ggtitle("Forecasts total (level = 0) with Random Walk") +
   labs(x="Weeks", y="Product incomes")
 
+#Accuracy random walk
 acc.tr.bu.rw0 <- t(accuracy.gts(prod.tr.bu.rw, prod.ts.hts, levels = 0))
 acc.tr.tda.rw0 <- t(accuracy.gts(prod.tr.tda.rw, prod.ts.hts,levels = 0)) 
 acc.tr.tdp.rw0 <- t(accuracy.gts(prod.tr.tdp.rw, prod.ts.hts,levels = 0))
@@ -158,9 +194,11 @@ rownames(acc.tr.rw0) <- c("bu", "tdgsa", "tdgsf", "tdgp", "or", "mo")
 knitr::kable(acc.tr.rw0, digits = 4)
 
 #--------------------------------------------------------------------------------#
-###### CATEGORY/GROUP (LEVEL = 1)
 
-### ARIMA MODELS
+# CATEGORY/GROUP (LEVEL = 1)
+
+#ARIMA MODELS
+#Accuracy
 acc.tr.bu.arima1 <- t(accuracy.gts(prod.tr.bu.arima, prod.ts.hts, levels = 1))
 acc.tr.tda.arima1 <- t(accuracy.gts(prod.tr.tda.arima, prod.ts.hts,levels = 1)) 
 acc.tr.tdp.arima1 <- t(accuracy.gts(prod.tr.tdp.arima, prod.ts.hts,levels = 1))
@@ -175,7 +213,7 @@ knitr::kable(acc.tr.tdf.arima1, digits = 4)
 knitr::kable(acc.tr.or.arima1, digits = 4)
 knitr::kable(acc.tr.mo.arima1, digits = 4)
 
-#Moyenne du RMSE
+#Mean of the RMSE
 acc.tr.bu.arima1 <- as_tibble(acc.tr.bu.arima1)
 acc.tr.tda.arima1 <- as_tibble(acc.tr.tda.arima1)
 acc.tr.tdp.arima1 <- as_tibble(acc.tr.tdp.arima1)
@@ -198,7 +236,7 @@ colnames(RMSE.arima1) <- "RMSE arima 1"
 
 knitr::kable(RMSE.arima1, digits = 4)
 
-#Moyenne du MAE
+#Mean of MAE
 mae.bu.arima1 <- mean(acc.tr.bu.arima1$MAE)
 mae.tda.arima1 <- mean(acc.tr.tda.arima1$MAE)
 mae.tdp.arima1 <- mean(acc.tr.tdp.arima1$MAE)
@@ -214,7 +252,8 @@ colnames(MAE.arima1) <- "MAE arima 1"
 
 knitr::kable(MAE.arima1, digits = 4)
 
-### ETS models
+#ETS models
+#Accuracy
 acc.tr.bu.ets1 <- t(accuracy.gts(prod.tr.bu.ets, prod.ts.hts, levels = 1))
 acc.tr.tda.ets1 <- t(accuracy.gts(prod.tr.tda.ets, prod.ts.hts,levels = 1)) 
 acc.tr.tdp.ets1 <- t(accuracy.gts(prod.tr.tdp.ets, prod.ts.hts,levels = 1))
@@ -229,7 +268,7 @@ knitr::kable(acc.tr.tdf.ets1, digits = 4)
 knitr::kable(acc.tr.or.ets1, digits = 4)
 knitr::kable(acc.tr.mo.ets1, digits = 4)
 
-#Moyenne du RMSE
+#Mean of RMSE
 acc.tr.bu.ets1 <- as_tibble(acc.tr.bu.ets1)
 acc.tr.tda.ets1 <- as_tibble(acc.tr.tda.ets1)
 acc.tr.tdp.ets1 <- as_tibble(acc.tr.tdp.ets1)
@@ -252,7 +291,7 @@ colnames(RMSE.ets1) <- "RMSE ets 1"
 
 knitr::kable(RMSE.ets1, digits = 4)
 
-#Moyenne du MAE
+#Mean of MAE
 mae.bu.ets1 <- mean(acc.tr.bu.ets1$MAE)
 mae.tda.ets1 <- mean(acc.tr.tda.ets1$MAE)
 mae.tdp.ets1 <- mean(acc.tr.tdp.ets1$MAE)
@@ -268,7 +307,8 @@ colnames(MAE.ets1) <- "MAE ets 1"
 
 knitr::kable(MAE.ets1, digits = 4)
 
-### RANDOM WALK MODELS
+#RANDOM WALK MODELS
+#Accuracy
 acc.tr.bu.rw1 <- t(accuracy.gts(prod.tr.bu.rw, prod.ts.hts, levels = 1))
 acc.tr.tda.rw1 <- t(accuracy.gts(prod.tr.tda.rw, prod.ts.hts,levels = 1)) 
 acc.tr.tdp.rw1 <- t(accuracy.gts(prod.tr.tdp.rw, prod.ts.hts,levels = 1))
@@ -283,7 +323,7 @@ knitr::kable(acc.tr.tdf.rw1, digits = 4)
 knitr::kable(acc.tr.or.rw1, digits = 4)
 knitr::kable(acc.tr.mo.rw1, digits = 4)
 
-#Moyenne du RMSE
+#Mean of RMSE
 acc.tr.bu.rw1 <- as_tibble(acc.tr.bu.rw1)
 acc.tr.tda.rw1 <- as_tibble(acc.tr.tda.rw1)
 acc.tr.tdp.rw1 <- as_tibble(acc.tr.tdp.rw1)
@@ -306,7 +346,7 @@ colnames(RMSE.rw1) <- "RMSE rw 1"
 
 knitr::kable(RMSE.rw1, digits = 4)
 
-#Moyenne du MAE
+#Mean of MAE
 mae.bu.rw1 <- mean(acc.tr.bu.rw1$MAE)
 mae.tda.rw1 <- mean(acc.tr.tda.rw1$MAE)
 mae.tdp.rw1 <- mean(acc.tr.tdp.rw1$MAE)
@@ -323,9 +363,11 @@ colnames(MAE.rw1) <- "MAE rw 1"
 knitr::kable(MAE.rw1, digits = 4)
 
 #--------------------------------------------------------------------------------#
-###### PRODUCTS (LEVEL = 2)
 
-### ARIMA MODELS
+#PRODUCTS (LEVEL = 2)
+
+#ARIMA MODELS
+#Accuracy
 acc.tr.bu.arima2 <- t(accuracy.gts(prod.tr.bu.arima, prod.ts.hts, levels = 2))
 acc.tr.tda.arima2 <- t(accuracy.gts(prod.tr.tda.arima, prod.ts.hts,levels = 2)) 
 acc.tr.tdp.arima2 <- t(accuracy.gts(prod.tr.tdp.arima, prod.ts.hts,levels = 2))
@@ -340,7 +382,7 @@ knitr::kable(acc.tr.tdf.arima2, digits = 4)
 knitr::kable(acc.tr.or.arima2, digits = 4)
 knitr::kable(acc.tr.mo.arima2, digits = 4)
 
-#Moyenne du RMSE
+#Mean of RMSE
 acc.tr.bu.arima2 <- as_tibble(acc.tr.bu.arima2)
 acc.tr.tda.arima2 <- as_tibble(acc.tr.tda.arima2)
 acc.tr.tdp.arima2 <- as_tibble(acc.tr.tdp.arima2)
@@ -363,7 +405,7 @@ colnames(RMSE.arima2) <- "RMSE arima 2"
 
 knitr::kable(RMSE.arima2, digits = 4)
 
-#Moyenne du MAE
+#Mean of MAE
 mae.bu.arima2 <- mean(acc.tr.bu.arima2$MAE)
 mae.tda.arima2 <- mean(acc.tr.tda.arima2$MAE)
 mae.tdp.arima2 <- mean(acc.tr.tdp.arima2$MAE)
@@ -379,7 +421,8 @@ colnames(MAE.arima2) <- "MAE arima 2"
 
 knitr::kable(MAE.arima2, digits = 4)
 
-### ETS models
+#ETS models
+#Accuracy
 acc.tr.bu.ets2 <- t(accuracy.gts(prod.tr.bu.ets, prod.ts.hts, levels = 2))
 acc.tr.tda.ets2 <- t(accuracy.gts(prod.tr.tda.ets, prod.ts.hts,levels = 2)) 
 acc.tr.tdp.ets2 <- t(accuracy.gts(prod.tr.tdp.ets, prod.ts.hts,levels = 2))
@@ -394,7 +437,7 @@ knitr::kable(acc.tr.tdf.ets2, digits = 4)
 knitr::kable(acc.tr.or.ets2, digits = 4)
 knitr::kable(acc.tr.mo.ets2, digits = 4)
 
-#Moyenne du RMSE
+#Mean of RMSE
 acc.tr.bu.ets2 <- as_tibble(acc.tr.bu.ets2)
 acc.tr.tda.ets2 <- as_tibble(acc.tr.tda.ets2)
 acc.tr.tdp.ets2 <- as_tibble(acc.tr.tdp.ets2)
@@ -417,7 +460,7 @@ colnames(RMSE.ets2) <- "RMSE ets 2"
 
 knitr::kable(RMSE.ets2, digits = 4)
 
-#Moyenne du MAE
+#Mean of MAE
 mae.bu.ets2 <- mean(acc.tr.bu.ets2$MAE)
 mae.tda.ets2 <- mean(acc.tr.tda.ets2$MAE)
 mae.tdp.ets2 <- mean(acc.tr.tdp.ets2$MAE)
@@ -433,7 +476,8 @@ colnames(MAE.ets2) <- "MAE ets 2"
 
 knitr::kable(MAE.ets2, digits = 4)
 
-### RANDOM WALK MODELS
+#RANDOM WALK MODELS
+#Accuracy
 acc.tr.bu.rw2 <- t(accuracy.gts(prod.tr.bu.rw, prod.ts.hts, levels = 2))
 acc.tr.tda.rw2 <- t(accuracy.gts(prod.tr.tda.rw, prod.ts.hts,levels = 2)) 
 acc.tr.tdp.rw2 <- t(accuracy.gts(prod.tr.tdp.rw, prod.ts.hts,levels = 2))
@@ -448,7 +492,7 @@ knitr::kable(acc.tr.tdf.rw2, digits = 4)
 knitr::kable(acc.tr.or.rw2, digits = 4)
 knitr::kable(acc.tr.mo.rw2, digits = 4)
 
-#Moyenne du RMSE
+#Mean of RMSE
 acc.tr.bu.rw2 <- as_tibble(acc.tr.bu.rw2)
 acc.tr.tda.rw2 <- as_tibble(acc.tr.tda.rw2)
 acc.tr.tdp.rw2 <- as_tibble(acc.tr.tdp.rw2)
@@ -471,7 +515,7 @@ colnames(RMSE.rw2) <- "RMSE rw 2"
 
 knitr::kable(RMSE.rw2, digits = 4)
 
-#Moyenne du MAE
+#Mean of MAE
 mae.bu.rw2 <- mean(acc.tr.bu.rw2$MAE)
 mae.tda.rw2 <- mean(acc.tr.tda.rw2$MAE)
 mae.tdp.rw2 <- mean(acc.tr.tdp.rw2$MAE)
@@ -487,48 +531,11 @@ colnames(MAE.rw2) <- "MAE rw 2"
 
 knitr::kable(MAE.rw2, digits = 4)
 
-###-------------------------------------------------------------------------###
-prod.tr.agg <- ts(aggts(prod.tr.hts, levels = 2), frequency = 52, start=start(prod.tr.hts$bts))
-prod.ts.agg <- ts(aggts(prod.ts.hts, levels = 2), frequency = 52, start=start(prod.ts.hts$bts))
-
-test <- aggts(prod.hts, level=1)
-
-#Graph of groups/categories
-cols <- sample(scales::hue_pal(h=c(15,375),
-                               c=100,l=65,h.start=0,direction = 1)(NCOL(prod.tr.agg)))
-as_tibble(test) %>%
-  gather(Group) %>%
-  mutate(Date = rep(time(test), NCOL(test)),
-         Groups = str_sub(Group,1,8)) %>%
-  ggplot(aes(x=Date, y=value, group=Groups, colour=Group)) +
-  geom_line() +
-  facet_grid(Groups~., scales="free_y") +
-  xlab("Weeks") + ylab("Product incomes") +
-  ggtitle("Group level")
-  #theme(legend.position="none")
-
-prod.ts.fct <- aggts(prod.ts.hts, level=1)
-
-as_tibble(prod.ts.fct) %>%
-  gather(Group) %>%
-  mutate(Date = rep(time(prod.ts.fct), NCOL(prod.ts.fct)),
-         Groups = str_sub(Group,1,8)) %>%
-  ggplot(aes(x=Date, y=value, group=Groups, colour=Group)) +
-  geom_line() +
-  facet_grid(Groups~., scales="free_y") +
-  xlab("Weeks") + ylab("Product incomes") +
-  ggtitle("Group level: forecasts") +
-  scale_colour_manual(values = cols) +
-  autolayer(aggts(prod.tr.bu.arima, levels = 1), series = "bu")+
-  autolayer(aggts(prod.tr.tda.arima, levels = 1), series = "tdgsa")+ 
-  autolayer(aggts(prod.tr.tdp.arima, levels = 1), series = "tdgsf")+ 
-  autolayer(aggts(prod.tr.tdf.arima, levels = 1), series = "tdfp")+ 
-  autolayer(aggts(prod.tr.or.arima, levels = 1), series = "or")+
-  autolayer(aggts(prod.tr.mo.arima, levels = 1), series = "mo")
-
 #---------------------------------------------------------------------------#
 
-#RW
+#FORECASTING PART
+
+#Random Walk
 prod.tdgsa.fct.rw <- forecast(object = prod.hts, h = 17, fmethod = "rw", method = "tdgsa")
 autoplot(aggts(prod.hts, levels = 0), series = "Total") +
   autolayer(aggts(prod.tdgsa.fct.rw, levels = 0), series = "Forecast")
