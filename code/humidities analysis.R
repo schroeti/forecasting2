@@ -280,6 +280,72 @@ RMSE120
 
 #4. CO2 comedor sensor
 
+#ARIMA
+ARIMA_auto_co2 <- auto.arima(co2comsens, stepwise = FALSE, biasadj = TRUE, allowdrift = TRUE, lambda = "auto")
+View(ARIMA_auto_co2)
+
+#AIC ARIMA
+AIC(ARIMA_auto_co2)
+
+
+#ETS
+ets_co2 <- ets(co2comsens, model = "ZZZ", damped = NULL, alpha = NULL, beta = NULL, gamma = NULL, phi = NULL,lambda = "auto", biasadj = TRUE, ic = c("aicc", "aic", "bic") )
+View(ets_co2)
+
+#AIC_ETS
+AIC(ets_co2)
+
+
+#residuals
+checkresiduals(ARIMA_auto_co2)
+checkresiduals(ets_co2)
+
+
+#ADF tests
+adf.test(ARIMA_auto_co2$residuals)
+autoplot(ARIMA_auto_co2)
+
+#KPSSTEST
+kpss.test(ARIMA_auto_co2$residuals)
+
+
+#Forecasts
+
+h1 <- forecast(ARIMA_auto_co2, h = 1)
+autoplot(h1)
+
+h24 <- forecast(ARIMA_auto_co2, h = 24)
+autoplot(h24)
+
+h120 <- forecast(ARIMA_auto_co2, h = 120)
+autoplot(h120)
+
+
+#Cross-Validation
+CvARIMA <- function(x,h){forecast(auto.arima(co2comsens, stepwise = FALSE,
+                                             biasadj = TRUE, lambda = "auto"), h=h)}
+
+ARIMA_co2_cv1 <- tsCV(co2comsens, CvARIMA, h=120)
+ARIMA_co2_cv1
+
+
+ARIMA_co2_cv0 <- tsCV(co2comsens, CvARIMA, h=1)
+ARIMA_co2_cv0
+
+
+ARIMA_co2_cv24 <- tsCV(co2comsens, CvARIMA, h=24)
+ARIMA_co2_cv24
+
+
+RMSE1 <-  sqrt(mean(ARIMA_co2_cv0^2, na.rm=TRUE))
+RMSE2 <-  sqrt(mean(ARIMA_co2_cv24^2, na.rm=TRUE))
+RMSE3 <-  sqrt(mean(ARIMA_co2_cv1^2, na.rm=TRUE))
+
+RMSE1
+RMSE2
+RMSE3
+
+
 #---------------------------------------------------------------------------#
 
 # 5.Lightning habitacion sensor
